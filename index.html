@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>☠ PRIVATE SECURE TEMP MAIL ☠</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+/* MATRIX BACKGROUND */
+canvas{
+    position:fixed;
+    top:0;left:0;
+    z-index:-1;
+}
+
+/* UI */
+body{
+    margin:0;
+    font-family:Consolas, monospace;
+    background:black;
+    color:#00ffcc;
+}
+.container{
+    max-width:900px;
+    margin:auto;
+    padding:20px;
+}
+.title{
+    text-align:center;
+    font-size:28px;
+    letter-spacing:3px;
+    text-shadow:0 0 15px #00ffcc;
+}
+.panel{
+    margin-top:20px;
+    padding:15px;
+    border:1px solid #00ffcc55;
+    border-radius:10px;
+    box-shadow:0 0 20px #00ffcc33;
+}
+input, select{
+    width:100%;
+    padding:10px;
+    background:black;
+    color:#00ffcc;
+    border:1px solid #00ffcc;
+    border-radius:6px;
+}
+button{
+    background:black;
+    color:#00ffcc;
+    border:1px solid #00ffcc;
+    padding:10px;
+    border-radius:6px;
+    cursor:pointer;
+}
+button:hover{
+    background:#00ffcc;
+    color:black;
+}
+.flex{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+.mail{
+    border-bottom:1px dashed #00ffcc55;
+    padding:10px 0;
+}
+.status{
+    font-size:12px;
+    opacity:.7;
+}
+</style>
+</head>
+
+<body>
+<canvas id="matrix"></canvas>
+
+<div class="container">
+
+<div class="title">☠ PRIVATE SECURE TEMP MAIL ☠</div>
+
+<div class="panel">
+    <h3>📧 Temp Email</h3>
+    <div class="flex">
+        <input id="emailInput" readonly>
+        <button onclick="copyMail()">COPY</button>
+        <button onclick="newMail()">NEW</button>
+    </div>
+    <div class="status" id="status">idle</div>
+</div>
+
+<div class="panel">
+    <h3>🌐 Domain</h3>
+    <select id="domainSelect" onchange="newMail()"></select>
+</div>
+
+<div class="panel">
+    <h3>🔍 Search</h3>
+    <input id="searchInput" placeholder="Search subject / from" oninput="renderInbox()">
+</div>
+
+<div class="panel">
+    <h3>📥 Inbox</h3>
+    <div id="mails">Waiting for messages…</div>
+</div>
+
+</div>
+
+<script>
+/* ===== MATRIX EFFECT ===== */
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const letters = "01";
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+const drops = Array.from({length:columns}).fill(1);
+function drawMatrix(){
+    ctx.fillStyle="rgba(0,0,0,0.05)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#00ffcc";
+    ctx.font=fontSize+"px monospace";
+    drops.forEach((y,i)=>{
+        const text = letters[Math.floor(Math.random()*letters.length)];
+        ctx.fillText(text,i*fontSize,y*fontSize);
+        if(y*fontSize>canvas.height && Math.random()>0.975) drops[i]=0;
+        drops[i]++;
+    });
+}
+setInterval(drawMatrix,50);
+
+/* ===== TEMP MAIL LOGIC ===== */
+const DOMAINS = [
+  "1secmail.com",
+  "1secmail.org",
+  "1secmail.net",
+  "wwjmp.com",
+  "esiix.com",
+  "yoggm.com"
+];
+
+let login="";
+let inbox=[];
+
+const domainSelect=document.getElementById("domainSelect");
+DOMAINS.forEach(d=>{
+    const o=document.createElement("option");
+    o.textContent=d;
+    domainSelect.appendChild(o);
+});
+
+function rand(){
+    return Math.random().toString(36).substring(2,10);
+}
+
+function setStatus(t){
+    document.getElementById("status").textContent=t;
+}
+
+function newMail(){
+    login = rand();
+    const domain = domainSelect.value;
+    document.getElementById("emailInput").value = `${login}@${domain}`;
+    inbox=[];
+    renderInbox();
+    setStatus("new mailbox created");
+}
+
+function copyMail(){
+    const v=document.getElementById("emailInput").value;
+    if(!v) return alert("Email empty!");
+    navigator.clipboard.writeText(v);
+    setStatus("email copied");
+}
+
+async function loadInbox(){
+    if(!login) return;
+    try{
+        setStatus("checking inbox…");
+        const domain = domainSelect.value;
+        const r = await fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${login}&domain=${domain}`);
+        const data = await r.json();
+        inbox = data;
+        renderInbox();
+        setStatus("online");
+    }catch{
+        setStatus("retrying…");
+    }
+}
+
+async function readMail(id){
+    const domain = domainSelect.value;
+    const r = await fetch(`https://www.1secmail.com/api/v1/?action=readMessage&login=${login}&domain=${domain}&id=${id}`);
+    const m = await r.json();
+    alert(`FROM: ${m.from}\n\nSUBJECT: ${m.subject}\n\n${m.textBody}`);
+}
+
+function renderInbox(){
+    const q=document.getElementById("searchInput").value.toLowerCase();
+    const box=document.getElementById("mails");
+    if(inbox.length===0){
+        box.innerHTML="No messages yet…";
+        return;
+    }
+    box.innerHTML="";
+    inbox
+    .filter(m=>m.from.toLowerCase().includes(q)||m.subject.toLowerCase().includes(q))
+    .forEach(m=>{
+        box.innerHTML+=`
+        <div class="mail">
+            <b>${m.from}</b><br>
+            ${m.subject}<br>
+            <button onclick="readMail(${m.id})">OPEN</button>
+        </div>`;
+    });
+}
+
+newMail();
+setInterval(loadInbox,8000);
+</script>
+
+</body>
+</html>
